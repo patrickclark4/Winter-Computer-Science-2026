@@ -1,0 +1,69 @@
+/*********************************
+Name: Patrick Clark
+Date Modified: 1/19/26
+Description: CS 161 Lab 1
+Input:  
+Output:
+*********************************/
+
+#include <iostream>
+#include <iomanip>
+#include <ctime>
+#include <cmath>
+
+int main() {
+// Part 1: Welcome and current time in PST (UTC-8)
+
+std::time_t now = std::time(nullptr);
+const int PST_SECONDS = 8 * 3600;
+std::time_t pst_time = now - PST_SECONDS;
+std::tm *ptm = std:gmtime(&pst_time);
+
+std::cout << "Welcome to CS 161 Lab 1. The current time is ";
+std::cout << std::setw(2) << std::setfill('0') << ptm->tm_hour << ":"
+          << std::setw(2) << std::setfill('0') << ptm->tm_min << ":"
+          << std::setw(2) << std::setfill('0') << ptm->tm_sec
+          << " PST." << std::endl << std::endl;
+
+// Part 2: Read inputs and compute amounts
+
+const double TAX_RATE = 0.06; // tax rate is 6%
+
+double food_input = 0.0;
+std::cout << "Enter Cost of Food: $";
+std::cin >> food_input;
+
+double gratuity_percent = 0.0;
+std::cout << "Enter Gratuity Percentage: ";
+std::cin >> gratuity_percent;
+
+// Truncate the amounts to 2 decminals
+long long food_cents = static_cast<long long>(food_input *100.0);
+long long tax_cents = static_cast<long long>(food_cents * TAX_RATE);
+long long gratuity_cents = static_cast<long long>(food_cents * (gratuity_percent / 100.0));
+long long total_cents = food_cents + tax_cents + gratuity_cents;
+
+// Output the bill
+std::cout << std::endl;
+std::cout << "Here is the bill with " << static_cast<int>(TAX_RATE * 100.0)
+          << "% tax and " << gratuity_percent << "% gratuity:" << std::endl << std::endl;
+std::cout << std::fixed << std::setprecision(2);
+std::cout << "Food Charge: $" << (food_cents / 100.0) <<std::endl;
+std::cout << "Tax: $" << (tax_cents / 100.0) << std::endl;
+std::cout << "Gratuitiy: $" << (gratuity_cents / 100.0) <<std::endl
+std::cout << "Total Due: $" << (total cents / 100.0) << std:endl <<std::endl;
+
+//Part 3: cash tendered and change
+
+double cash_input = 0.0;
+std:cout << "Enter Cash Tendered: $";
+std::cin >> cash_input;
+
+long long cash_cents = static_cast<long long>(cash_input * 100.0);
+long long change_cents = cash_cents - total_cents;
+
+std::cout << std:endl;
+std::cout << "Cash Tendered: $" << (cash_cents / 100.0) <<std:endl <<std:endl;
+std::cout << "Change Due To Customer: $" << (change_cents / 100.0) << std:endl;
+
+return 0;
