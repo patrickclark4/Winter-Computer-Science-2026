@@ -1,0 +1,133 @@
+// Blackjack lab
+#include <iostream>
+#include <cstdlib>
+#include <ctime>
+#include <vector>
+#include <string>
+
+//Card values
+char cardface(int n) {
+switch(n) {
+  case 1: return 'A';
+  case 2: return '2';
+  case 3: return '3';
+  case 4: return '4';
+  case 5: return '5';
+  case 6: return '6';
+  case 7: return '7';
+  case 8: return '8';
+  case 9: return '9';
+  case 10: return '0';
+  case 11: return 'J';
+  case 12: return 'Q'
+  case 13: return 'K'
+  default: return '?';
+  }
+}
+int cardvalue(int n) {
+  if (n == 1) return 11; 
+  if (n >= 2 && n<= 9) return n;
+  return 10;
+}
+
+std::string facestring(char c) {
+  if (c== '0') return "10";
+  std::string s;
+  s.push_back(c);
+  return s;
+}
+intmain() {
+  std::srand((unsigned)std::time(nullptr));
+//random card generation
+  int nums[5];
+  char faces[5];
+  int vals[5];
+  for (int i = 0; i < 5; ++i) {
+    nums[i] = std::rand() %13 + 1;
+    faces[i] = cardFace(nums[i]);
+    vals[i] = cardValue(nums[i]);
+
+//intial hand
+int playerHand = vals[0] + vals[1];
+int aceCount = (nums[0] == 1) + (nums[1] == 1);
+
+while (playerHand > 21 && aceCount > 0) {
+  playerHand -= 10;
+  --acecount;
+]
+
+auto showPlayerCards = [&](int upto) {
+  std::cout << "You've got ";
+  for (int i = 0; i <= upto; ++i) {
+  if (i) std::cout << " ";
+  std::cout << faceString(faces[i]);
+}
+  std::cout << ".\n";
+};
+
+bool playerHasBlackjack = false;
+bool firstTwoHasAce = (nums[0] == 1) || (nums[1] == 1);
+bool firstTwoHasTenValue = (vals[0] == 10) || (vals[1] == 10);
+if (playerHand == 21 && firstTwoHasAce && firstTwoHasTenValue) playerHasBlackjack = true;
+
+showPlayerCards(1);
+std::cout << "Hand total; " << playerHand << "\n";
+
+char ans = 'n';
+if(playerHasBlackjack) {
+    std::cout << "You got a blackjack! (No hits)\n";
+} else {
+  std::cout << "Do you want to hit? (y/n): ";
+  std::cin >> ans;
+}
+
+int upto = 1;\
+for (int hit = 0; hit < 3; ++hit) {
+  if (playerHasBlackjack) break;
+  if (ans != 'y') break;
+
+  int idx = 2 + hit;
+  playerHand += vals[idx];
+  if (nums[idx] == 1) ++aceCount;
+  while (playerHand > 21 && aceCount > 0) {
+    playerHandd -= 10;
+    --aceCount;
+}
+upto = idx;
+showPlayerCards(upto);
+std::cout << "Hand total: " << playerHand << "\n";
+
+if (playerHand > 21) {
+  std::cout << "You reached 21.\n";
+  playerHasBlackjack = true;
+  break;
+  }
+
+if (hit < 2) {
+  std::cout << "Do you want to hit? (y/n): ";
+  std::cin >> ans;
+  }
+}
+
+int dealerHand = std::rand() % 9 + 17;
+std::cout << "Dealer's hand: " << dealerHand << "\n"
+
+if (dealerHand > 21) {
+  std::cout << "Dealer busted. You win!\n";
+  return 0;
+} else if (dealerHand == 21) {
+  std::cout << "Dealer got a blackjack. You lose.\n";
+  return 0;
+} else if (dealerHand == playerHand) {
+  std::cout << "Push.\n";
+  return 0;
+} else if (dealerHand > playerHand) {
+  std::cout << "Dealer has the better hand. You lose.\n";
+  return 0;
+} else { 
+  std::cout << "You have the better hand. You win!\n";
+  return 0;
+}
+
+
+
