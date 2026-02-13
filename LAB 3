@@ -67,7 +67,7 @@ int main() {
         cout << ".\n";
     };
 
-    // natural blackjack
+    // automatic blackjack
     bool playerHasBlackjack = false;
     bool firstTwoHasAce = (nums[0] == 1) || (nums[1] == 1);
     bool firstTwoHasTenValue = (vals[0] == 10) || (vals[1] == 10);
