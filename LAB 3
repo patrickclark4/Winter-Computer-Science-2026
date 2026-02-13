@@ -1,133 +1,194 @@
-// Blackjack lab
 #include <iostream>
 #include <cstdlib>
 #include <ctime>
-#include <vector>
 #include <string>
 
-//Card values
-char cardface(int n) {
-switch(n) {
-  case 1: return 'A';
-  case 2: return '2';
-  case 3: return '3';
-  case 4: return '4';
-  case 5: return '5';
-  case 6: return '6';
-  case 7: return '7';
-  case 8: return '8';
-  case 9: return '9';
-  case 10: return '0';
-  case 11: return 'J';
-  case 12: return 'Q'
-  case 13: return 'K'
-  default: return '?';
-  }
-}
-int cardvalue(int n) {
-  if (n == 1) return 11; 
-  if (n >= 2 && n<= 9) return n;
-  return 10;
+using namespace std;
+
+char cardFace(int n) {
+    switch (n) {
+        case 1: return 'A';
+        case 2: return '2';
+        case 3: return '3';
+        case 4: return '4';
+        case 5: return '5';
+        case 6: return '6';
+        case 7: return '7';
+        case 8: return '8';
+        case 9: return '9';
+        case 10: return '0'; // using '0' to represent 10
+        case 11: return 'J';
+        case 12: return 'Q';
+        case 13: return 'K';
+        default: return '?';
+    }
 }
 
-std::string facestring(char c) {
-  if (c== '0') return "10";
-  std::string s;
-  s.push_back(c);
-  return s;
-}
-intmain() {
-  std::srand((unsigned)std::time(nullptr));
-//random card generation
-  int nums[5];
-  char faces[5];
-  int vals[5];
-  for (int i = 0; i < 5; ++i) {
-    nums[i] = std::rand() %13 + 1;
-    faces[i] = cardFace(nums[i]);
-    vals[i] = cardValue(nums[i]);
-
-//intial hand
-int playerHand = vals[0] + vals[1];
-int aceCount = (nums[0] == 1) + (nums[1] == 1);
-
-while (playerHand > 21 && aceCount > 0) {
-  playerHand -= 10;
-  --acecount;
-]
-
-auto showPlayerCards = [&](int upto) {
-  std::cout << "You've got ";
-  for (int i = 0; i <= upto; ++i) {
-  if (i) std::cout << " ";
-  std::cout << faceString(faces[i]);
-}
-  std::cout << ".\n";
-};
-
-bool playerHasBlackjack = false;
-bool firstTwoHasAce = (nums[0] == 1) || (nums[1] == 1);
-bool firstTwoHasTenValue = (vals[0] == 10) || (vals[1] == 10);
-if (playerHand == 21 && firstTwoHasAce && firstTwoHasTenValue) playerHasBlackjack = true;
-
-showPlayerCards(1);
-std::cout << "Hand total; " << playerHand << "\n";
-
-char ans = 'n';
-if(playerHasBlackjack) {
-    std::cout << "You got a blackjack! (No hits)\n";
-} else {
-  std::cout << "Do you want to hit? (y/n): ";
-  std::cin >> ans;
+int cardValue(int n) {
+    if (n == 1) return 11; // Ace initially 11
+    if (n >= 2 && n <= 9) return n;
+    return 10; // 10, J, Q, K
 }
 
-int upto = 1;\
-for (int hit = 0; hit < 3; ++hit) {
-  if (playerHasBlackjack) break;
-  if (ans != 'y') break;
-
-  int idx = 2 + hit;
-  playerHand += vals[idx];
-  if (nums[idx] == 1) ++aceCount;
-  while (playerHand > 21 && aceCount > 0) {
-    playerHandd -= 10;
-    --aceCount;
-}
-upto = idx;
-showPlayerCards(upto);
-std::cout << "Hand total: " << playerHand << "\n";
-
-if (playerHand > 21) {
-  std::cout << "You reached 21.\n";
-  playerHasBlackjack = true;
-  break;
-  }
-
-if (hit < 2) {
-  std::cout << "Do you want to hit? (y/n): ";
-  std::cin >> ans;
-  }
+string faceString(char c) {
+    if (c == '0') return "10";
+    return string(1, c);
 }
 
-int dealerHand = std::rand() % 9 + 17;
-std::cout << "Dealer's hand: " << dealerHand << "\n"
+int main() {
+    srand(static_cast<unsigned>(time(nullptr)));
 
-if (dealerHand > 21) {
-  std::cout << "Dealer busted. You win!\n";
-  return 0;
-} else if (dealerHand == 21) {
-  std::cout << "Dealer got a blackjack. You lose.\n";
-  return 0;
-} else if (dealerHand == playerHand) {
-  std::cout << "Push.\n";
-  return 0;
-} else if (dealerHand > playerHand) {
-  std::cout << "Dealer has the better hand. You lose.\n";
-  return 0;
-} else { 
-  std::cout << "You have the better hand. You win!\n";
-  return 0;
+    // Generate 5 random cards
+    int nums[5];
+    char faces[5];
+    int vals[5];
+    for (int i = 0; i < 5; ++i) {
+        nums[i] = rand() % 13 + 1;
+        faces[i] = cardFace(nums[i]);
+        vals[i] = cardValue(nums[i]);
+    }
+
+    // Initial two-card hand
+    int playerHand = vals[0] + vals[1];
+    int aceCount = (nums[0] == 1) + (nums[1] == 1);
+
+    // Adjust for Aces if hand busts
+    while (playerHand > 21 && aceCount > 0) {
+        playerHand -= 10; // convert an Ace from 11 to 1
+        --aceCount;
+    }
+
+    auto showPlayerCards = [&](int upto) {
+        cout << "You've got ";
+        for (int i = 0; i <= upto; ++i) {
+            if (i) cout << ' ';
+            cout << faceString(faces[i]);
+        }
+        cout << ".\n";
+    };
+
+    // natural blackjack
+    bool playerHasBlackjack = false;
+    bool firstTwoHasAce = (nums[0] == 1) || (nums[1] == 1);
+    bool firstTwoHasTenValue = (vals[0] == 10) || (vals[1] == 10);
+    if (playerHand == 21 && firstTwoHasAce && firstTwoHasTenValue) {
+        playerHasBlackjack = true;
+    }
+
+    showPlayerCards(1);
+    cout << "Hand total: " << playerHand << "\n";
+
+    char ans = 'n';
+    if (playerHasBlackjack) {
+        cout << "BLACKJACK! You win! (No hits)\n";
+        // In real blackjack, dealer would also check for blackjack
+        // For this lab, we'll end here
+        return 0;
+    } else {
+        cout << "Do you want to hit? (y/n): ";
+        cin >> ans;
+    }
+
+    // Up to 3 hits (cards indices 2,3,4)
+    int upto = 1;
+    for (int hit = 0; hit < 3; ++hit) {
+        if (ans != 'y') break;
+
+        int idx = 2 + hit;
+        if (idx >= 5) break; // safety
+
+        // Add the new card
+        playerHand += vals[idx];
+        if (nums[idx] == 1) ++aceCount;
+        
+        // Adjust for Aces if hand busts
+        while (playerHand > 21 && aceCount > 0) {
+            playerHand -= 10;
+            --aceCount;
+        }
+
+        upto = idx;
+        showPlayerCards(upto);
+        cout << "Hand total: " << playerHand << "\n";
+
+        // Check for bust
+        if (playerHand > 21) {
+            cout << "BUST! You lose.\n";
+            return 0;
+        }
+        
+        if (playerHand == 21) {
+            cout << "You reached 21!\n";
+            break;
+        }
+
+        // Ask for another hit if not at max hits
+        if (hit < 2) {
+            cout << "Do you want to hit? (y/n): ";
+            cin >> ans;
+        }
+    }
+
+    // Part 3: Simulate dealer hand
+    cout << "\n--- Dealer's turn ---\n";
+    // Dealer must hit on soft 16 and below, stand on hard 17 and above
+    int dealerHand = 0;
+    int dealerAceCount = 0;
+    
+    // dealer's first two cards
+    int dealerNum1 = rand() % 13 + 1;
+    int dealerNum2 = rand() % 13 + 1;
+    int dealerVal1 = cardValue(dealerNum1);
+    int dealerVal2 = cardValue(dealerNum2);
+    
+    dealerHand = dealerVal1 + dealerVal2;
+    if (dealerNum1 == 1) dealerAceCount++;
+    if (dealerNum2 == 1) dealerAceCount++;
+    
+    // Adjust dealer's Aces
+    while (dealerHand > 21 && dealerAceCount > 0) {
+        dealerHand -= 10;
+        dealerAceCount--;
+    }
+    
+    cout << "Dealer's initial hand: " << faceString(cardFace(dealerNum1)) << " " 
+         << faceString(cardFace(dealerNum2)) << "\n";
+    cout << "Dealer's total: " << dealerHand << "\n";
+    
+    while (dealerHand <= 16 || (dealerHand == 17 && dealerAceCount > 0)) {
+        int newCardNum = rand() % 13 + 1;
+        int newCardVal = cardValue(newCardNum);
+        cout << "Dealer hits: " << faceString(cardFace(newCardNum)) << "\n";
+        
+        dealerHand += newCardVal;
+        if (newCardNum == 1) dealerAceCount++;
+        
+        // Adjust for Aces
+        while (dealerHand > 21 && dealerAceCount > 0) {
+            dealerHand -= 10;
+            dealerAceCount--;
+        }
+        
+        cout << "Dealer's total: " << dealerHand << "\n";
+        if (dealerHand >= 21) break;
+    }
+
+    // Determine winner
+    cout << "\n--- Game Result ---\n";
+    cout << "Your hand: " << playerHand << "\n";
+    cout << "Dealer's hand: " << dealerHand << "\n";
+
+    if (dealerHand > 21) {
+        cout << "Dealer busted! YOU WIN!\n";
+    } else if (dealerHand == playerHand) {
+        cout << "Push (tie).\n";
+    } else if (dealerHand == 21 && dealerHand > playerHand) {
+        cout << "Dealer has blackjack. You lose.\n";
+    } else if (playerHand > dealerHand) {
+        cout << "YOU WIN!\n";
+    } else {
+        cout << "Dealer wins.\n";
+    }
+
+    return 0;
 }
-
-
-
