@@ -1,186 +1,216 @@
-//Tic-Tac-Toe lab
+// Tic-Tac-Toe lab - 12x12 Grid with Proper Board Markers
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <cstdlib>
+#include <cctype>
 
-const std::string SCORE_FILE = "src/score.txt";
+using namespace std;
 
-static std::string trim(const std::string &s) {
-  size_t a = 0;
-  while (a < s.size() && isspace((unsigned char)s[a])) ++a;
-  size_t b = s.size();
-  while (b > a && issspace((unsigned char)s[b-1])) --b;
-  return s.substr(a, b-a);
+// Constants
+const string SCORE_FILE = "score.txt";  // Changed from "src/score.txt" for online GDB
+const string EMPTY = "   ";                 // 3 spaces per cell
+
+// Trim
+static string trim(const string &s) {
+    size_t a = 0;
+    while (a < s.size() && isspace((unsigned char)s[a])) ++a;
+    size_t b = s.size();
+    while (b > a && isspace((unsigned char)s[b-1])) --b;
+    return s.substr(a, b - a);
 }
 
-void writeEmptyBoard(const std::string &filename) {
-  std::ofstream out(filename.c_str());
-  std:: string empty = "  ":
-  out << empty << "," << empty << "," << empty << ","
-      << empty << "," << empty << "," << empty << ","
-      << empty << "," << empty << "," << empty << ",X,"
-  out.close();
+// Write empty board to file
+void writeEmptyBoard() {
+    ofstream out(SCORE_FILE.c_str());
+    out << EMPTY << "," << EMPTY << "," << EMPTY << ","
+        << EMPTY << "," << EMPTY << "," << EMPTY << ","
+        << EMPTY << "," << EMPTY << "," << EMPTY << ",X,";
+    out.close();
+}
+
+// Display the 12x12 board 
+void displayBoard(const string &cell11, const string &cell12, const string &cell13,
+                  const string &cell21, const string &cell22, const string &cell23,
+                  const string &cell31, const string &cell32, const string &cell33) {
+    
+    // Top border
+    cout << "  -------------" << endl;
+    
+    // ROW 3 (Y=3)
+    cout << "3 |   |   |   |" << endl;
+    cout << "  | " << cell31[1] << " | " << cell32[1] << " | " << cell33[1] << " |" << endl;
+    cout << "  |   |   |   |" << endl;
+    cout << "  -------------" << endl;
+    
+    // ROW 2 (Y=2)
+    cout << "2 |   |   |   |" << endl;
+    cout << "  | " << cell21[1] << " | " << cell22[1] << " | " << cell23[1] << " |" << endl;
+    cout << "  |   |   |   |" << endl;
+    cout << "  -------------" << endl;
+    
+    // ROW 1 (Y=1)
+    cout << "1 |   |   |   |" << endl;
+    cout << "  | " << cell11[1] << " | " << cell12[1] << " | " << cell13[1] << " |" << endl;
+    cout << "  |   |   |   |" << endl;
+    cout << "  -------------" << endl;
+    cout << "    1   2   3" << endl;
+    cout << endl;
 }
 
 int main() {
-
-std::string cell11 = "  ", cell12 = "  ", cell13 = "  ";
-std::string cell21 = "  ", cell22 = "  ", cell23 = "  ";
-std::string cell31 = "  ", cell32 = "  ", cell33 = "  ";
-std::string whoseTurn = "X";
-
-std::ifstream in(SCORE_FILE.c_str());
-if (!in) {
-writeEmptyBoard(SCORE_FILE);
-in.open(SCORE_FILE.c_str());
-}
-std::string token;
-if (in) {
-  std::getline(in, token, ','); cell11 = token.empty() ? "  " : token;
-  std::getline(in, token, ','); cell12 = token.empty() ? "  " : token;
-  std::getline(in, token, ','); cell13 = token.empty() ? "  " : token;
-  std::getline(in, token, ','); cell21 = token.empty() ? "  " : token;
-  std::getline(in, token, ','); cell22 = token.empty() ? "  " : token;
-  std::getline(in, token, ','); cell23 = token.empty() ? "  " : token;
-  std::getline(in, token, ','); cell31 = token.empty() ? "  " : token;
-  std::getline(in, token, ','); cell32 = token.empty() ? "  " : token;
-  std::getline(in, token, ','); cell33 = token.empty() ? "  " : token;
-  std::getline(in, token, ','); whoseTurn = trim(token).empty() ? "X" :trim(token);
-}
-if (in.is_open()) in.close();
-bool X_won = false, O_won = false;
-auto eqX = [&](const std::string &c){ return trim(c) == "x"; };
-auto eq0 = [&](const std::string &c){ return trim(c) == "0"; };
-
-//rows
-if (eqX(cell11) && eqX(cell12) && eqX(cell13)) X_won = true;
-if (eq0(cell11) && eq0(cell12) && eq0(cell13)) 0_won = true;
-if (eqX(cell21) && eqX(cell22) && eqX(cell23)) X_won = true;
-if (eq0(cell21) && eq0(cell22) && eq0(cell23)) 0_won = true;
-if (eqX(cell31) && eqX(cell32) && eqX(cell33)) X_won = true;
-if (eq0(cell31) && eq0(cell32) && eq0(cell33)) 0_won = true;
-
-//columns
-if (eqX(cell11) && eqX(cell21) && eqX(cell31)) X_won = true:
-if (eq0(cell11) && eq0(cell21) && eq0(cell31)) 0_won = true;
-if (eqX(cell12) && eqX(cell22) && eqX(cell32)) X_won = true;
-if (eq0(cell12) && eq0(cell22) && eq0(cell32)) 0_won = true;
-if (eqX(cell13) && eqX(cell23) && eqX(cell33)) X_won = true;
-if (eq0(cell13) && eq0(cell23) && eq0(cell33)) 0_won = true:
-
-//diagonals
-if (eqX(cell11) && eqX(cell22) && eqX(cell33)) X_won = true;
-if (eq0(cell11) && eq0(cell22) && eq0(cell33)) 0_won = true;
-if (eqX(cell13) && eqX(cell22) && eqX(cell31)) X_won = true;
-if (eq0(cell13) && eq0(cell22) && eq0(cell31)) 0_won = true;
-
-bool isDraw = true;
-if(trim(cell11) == "" || trim(cell12) == "" || trim(cell13) == "" ||
-   trim(cell21) == "" || trim(cell22) == "" || trim(cell23) == "" ||
-   trim(cell31) == "" || trim(cell32) == "" || trim(cell33) == "") isDraw = false;
-
-if(trim(cell11) == "  " || trim(cell12) == "  " || trim(cell13) == "  " ||
-   trim(cell21) == "  " || trim(cell22) == "  " || trim(cell23) == "  " ||
-   trim(cell31) == "  " || trim(cell32) == "  " || trim(cell33) == "  ") isDraw = false;
-
-if (X_won || 0_won || isDraw) {
-
-std::string line1 = "|  |  |  |";
-std::string sep = "- - - - - - - - -"
-std:: string row3 = "3 " + cell31 + "|" + cell32 + "|" + cell33 + " ";
-std:: string row2 = "2 " + cell21 + "|" + cell22 + "|" + cell23 + " ";
-std:: string row1 = "1 " + cell11 + "|" + cell12 + "|" + cell13 + " ";
-std::cout << line1 << "\n" << row3 << "\n" << line1 << "\n" << sep << "\n"
-          << line1 << "\n" << row2 << "\n" << line1 << "\n" << sep << "\n"
-          << line1 << "\n" << row1 << "\n" << line1 << "\n"
-          << "  1  2  3\n";
-
-if (X_won) std::cout << "X won!\n";
-else if (0_won) std::cout << "O won!\n";
-else std::cout << "Draw!\n";
-
-writeEmptyBoard(SCORE_FILE);
-return 0;
-}
-
-std::string line = "|  |  |  |";
-std::string separator = "- - - - - - - - -";
-std::string r3 = "3 " + cell31 + "|" + cell32 + "|" + cell33 + "|";
-std::string r2 = "2 " + cell21 + "|" + cell22 + "|" + cell23 + "|";
-std::string r1 = "1 " + cell11 + "|" + cell12 + "|" + cell13 + "|";
-
-std::cout << line << std::endl;
-std::cout << r3 << std::endl;
-std::cout << line << std::endl:
-std::cout << separator << std::endl;
-std::cout << line << std::endl;
-std::cout << r2 << std::endl;
-std::cout << line << std::endl;
-std::cout << separator << std::endl;
-std::cout << line << std::endl;
-std::cout << r1 << std::endl;
-std::cout << line << std::endl;
-std::cout << "  1  2  3" <<std::endl;
-
-std::cout << "It is " << whoseTurn << "'s turn." <<std::endl;
-std::cout << "What is your desired move (enter as X,Y): ";
-std::string desiredMove);
-if (desiredMove.size() == 0) {
-std::getline(std::cin, desiredMove);
-}
-
-int x = -1, y = -1;
-bool validFormat = false;
-size_t commaPos = desiredMove.find(',');
-if (commaPos != std::string::npos) {
-  std::string sx = trim(desiredMove.substr(0, commaPos));
-  std::string sy = trim(desiredMove.substr(commaPos+1));
-  if (!sx.empty() && !sy.empty() {
-    x = std::atoi(sx.c_str());
-    y = std::atoi(sy.c_str());
-    if (x >= 1 && x <= 3 && y >= 1 && y <= 3) validFormat = true;
-}}
-bool updated = false;
-if (!validFormat) {
-  std::cout << "Invalid move format - you lose your turn.\n";
-} else {
-  while (true) {
-  std::string *cellPtr = nullptr;
-  if (x==1 && y==1) cellPtr = &cell11;
-  if (x==2 && y==1) cellPtr = &cell12;
-  if (x==3 && y==1) cellPtr = &cell13;
-  if (x==1 && y==2) cellPtr = &cell21;
-  if (x==2 && y==2) cellPtr = &cell22;
-  if (x==3 && y==2) cellPtr = &cell23;
-  if (x==1 && y==3) cellPtr = &cell31;
-  if (x==2 && y==3) cellPtr = &cell32;
-  if (x==3 && y==3) cellPtr = &cell33;
-
-if (!cellPtr) break;
-if(trim(*cellPtr) == "" || trim(*cellPtr) == "  ") {
-  if (whoseTurn == "X") *cellPtr = " X "; else *cellPtr = " 0 ";
-  updated = true;
-  break;
-} else {
-  std::cout << desiredmove << " is already taken. Try again" << std::endl;
-  std::cout << "It is " << whoseTurn << "'s turn." << std::endl;
-  std::cout << "What is your desired move (enter as X,Y): ";
-  std::getline(std::cin, desiredmove);
-  size_t c2 = desiredMove.find(',');
-  if (c2 == std::string::npos) { validFormat = false; break; }
-  std::string sx2 = trim(desiredMove.substr(0, c2));
-  std::string sy2 = trim(desiredMove.substr(c2+1));
-  x = std::atoi(sx2.c_str()); y = std::atoi(sy2.c_str());
-  if (!(x>=1 && x<=3 && y>=1 && y<=3)) { validFormat = false; break; }
-}}}
-if (whoseTurn == "X") whoseTurn = "0"; else whoseTurn = "X";
-std::ofstream out(SCORE_FILE.c_str());
-out << cell11 << "," << cell12 << "," << cell13 << ","
-    << cell21 << "," << cell22 << "," << cell23 << ","
-    << cell31 << "," << cell32 << "," << cell33 << "," << whoseTurn << ",";
-out.close();
-
-main();
-return0;
+    // PART 1: Set up - Define string variables for the 9 cells
+    string cell11 = EMPTY, cell12 = EMPTY, cell13 = EMPTY;
+    string cell21 = EMPTY, cell22 = EMPTY, cell23 = EMPTY;
+    string cell31 = EMPTY, cell32 = EMPTY, cell33 = EMPTY;
+    string whoseTurn = "X";
+    
+    // PART 2: Read from File
+    ifstream in(SCORE_FILE.c_str());
+    if (!in) {
+        writeEmptyBoard();
+        in.open(SCORE_FILE.c_str());
+    }
+    
+    string token;
+    if (in) {
+        getline(in, token, ','); if (!token.empty()) cell11 = token;
+        getline(in, token, ','); if (!token.empty()) cell12 = token;
+        getline(in, token, ','); if (!token.empty()) cell13 = token;
+        getline(in, token, ','); if (!token.empty()) cell21 = token;
+        getline(in, token, ','); if (!token.empty()) cell22 = token;
+        getline(in, token, ','); if (!token.empty()) cell23 = token;
+        getline(in, token, ','); if (!token.empty()) cell31 = token;
+        getline(in, token, ','); if (!token.empty()) cell32 = token;
+        getline(in, token, ','); if (!token.empty()) cell33 = token;
+        getline(in, token, ','); if (!trim(token).empty()) whoseTurn = trim(token);
+    }
+    in.close();
+    
+    // PART 3: Win or Draw
+    bool X_won = false;
+    bool O_won = false;
+    
+    string t11 = trim(cell11), t12 = trim(cell12), t13 = trim(cell13);
+    string t21 = trim(cell21), t22 = trim(cell22), t23 = trim(cell23);
+    string t31 = trim(cell31), t32 = trim(cell32), t33 = trim(cell33);
+    
+    // rows
+    if (t11 == "X" && t12 == "X" && t13 == "X") X_won = true;
+    if (t21 == "X" && t22 == "X" && t23 == "X") X_won = true;
+    if (t31 == "X" && t32 == "X" && t33 == "X") X_won = true;
+    if (t11 == "O" && t12 == "O" && t13 == "O") O_won = true;
+    if (t21 == "O" && t22 == "O" && t23 == "O") O_won = true;
+    if (t31 == "O" && t32 == "O" && t33 == "O") O_won = true;
+    
+    // columns
+    if (t11 == "X" && t21 == "X" && t31 == "X") X_won = true;
+    if (t12 == "X" && t22 == "X" && t32 == "X") X_won = true;
+    if (t13 == "X" && t23 == "X" && t33 == "X") X_won = true;
+    if (t11 == "O" && t21 == "O" && t31 == "O") O_won = true;
+    if (t12 == "O" && t22 == "O" && t32 == "O") O_won = true;
+    if (t13 == "O" && t23 == "O" && t33 == "O") O_won = true;
+    
+    // diagonals
+    if (t11 == "X" && t22 == "X" && t33 == "X") X_won = true;
+    if (t13 == "X" && t22 == "X" && t31 == "X") X_won = true;
+    if (t11 == "O" && t22 == "O" && t33 == "O") O_won = true;
+    if (t13 == "O" && t22 == "O" && t31 == "O") O_won = true;
+    
+    // for Draw
+    bool isDraw = false;
+    if (t11 != "" && t12 != "" && t13 != "" &&
+        t21 != "" && t22 != "" && t23 != "" &&
+        t31 != "" && t32 != "" && t33 != "") {
+        isDraw = true;
+    }
+    
+    // If game is over
+    if (X_won || O_won || isDraw) {
+        displayBoard(cell11, cell12, cell13, cell21, cell22, cell23, cell31, cell32, cell33);
+        
+        if (X_won) cout << "X won!" << endl;
+        else if (O_won) cout << "O won!" << endl;
+        else cout << "Draw!" << endl;
+        
+        writeEmptyBoard();
+        return 0;
+    }
+    
+    // Display current board
+    displayBoard(cell11, cell12, cell13, cell21, cell22, cell23, cell31, cell32, cell33);
+    
+    // PART 4: Moves
+    cout << "It is " << whoseTurn << "'s turn." << endl;
+    cout << "What is your desired move (enter as X,Y): ";
+    
+    string desiredMove;
+    getline(cin, desiredMove);
+    
+    INPUT_AGAIN:
+    
+    int x = -1, y = -1;
+    bool validFormat = false;
+    size_t commaPos = desiredMove.find(',');
+    
+    if (commaPos != string::npos) {
+        string sx = trim(desiredMove.substr(0, commaPos));
+        string sy = trim(desiredMove.substr(commaPos + 1));
+        if (!sx.empty() && !sy.empty()) {
+            x = atoi(sx.c_str());
+            y = atoi(sy.c_str());
+            if (x >= 1 && x <= 3 && y >= 1 && y <= 3) validFormat = true;
+        }
+    }
+    
+    string* cellPtr = nullptr;
+    
+    if (!validFormat) {
+        cout << "Invalid move format - you lose your turn." << endl;
+        if (whoseTurn == "X") whoseTurn = "O"; else whoseTurn = "X";
+    } else {
+        // Map coordinates (X,Y) where X is column, Y is row
+        if (x == 1 && y == 1) cellPtr = &cell11;
+        else if (x == 2 && y == 1) cellPtr = &cell12;
+        else if (x == 3 && y == 1) cellPtr = &cell13;
+        else if (x == 1 && y == 2) cellPtr = &cell21;
+        else if (x == 2 && y == 2) cellPtr = &cell22;
+        else if (x == 3 && y == 2) cellPtr = &cell23;
+        else if (x == 1 && y == 3) cellPtr = &cell31;
+        else if (x == 2 && y == 3) cellPtr = &cell32;
+        else if (x == 3 && y == 3) cellPtr = &cell33;
+        
+        if (cellPtr) {
+            if (trim(*cellPtr).empty()) {
+                if (whoseTurn == "X") {
+                    *cellPtr = " X ";
+                } else {
+                    *cellPtr = " O ";
+                }
+                
+                cout << "Move accepted!" << endl;
+                cout << endl;
+                
+                if (whoseTurn == "X") whoseTurn = "O"; else whoseTurn = "X";
+            } else {
+                cout << desiredMove << " is already taken. Try again." << endl;
+                cout << "It is " << whoseTurn << "'s turn." << endl;
+                cout << "What is your desired move (enter as X,Y): ";
+                getline(cin, desiredMove);
+                goto INPUT_AGAIN;
+            }
+        }
+    }
+    
+    // Save game state
+    ofstream out(SCORE_FILE.c_str());
+    out << cell11 << "," << cell12 << "," << cell13 << ","
+        << cell21 << "," << cell22 << "," << cell23 << ","
+        << cell31 << "," << cell32 << "," << cell33 << "," << whoseTurn << ",";
+    out.close();
+    
+    // Recursive call
+    main();
+    
+    return 0;
 }
