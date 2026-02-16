@@ -1,0 +1,291 @@
+// Week 5: Blackjack loop upgrade
+#include <iostream>
+#include <cstdlib>
+#include <ctime>
+#include <string>
+
+using namespace std;
+
+// Variables
+string shuffledDeck;
+string playerHand;
+string dealerHand;
+
+// Functions
+string newShuffledDeck();
+void dealCard(string &hand);
+int calculateHandTotal(string hand);
+bool checkBlackjack(string hand);
+bool checkBust(string hand);
+string printHand(string hand);
+int checkPlayerOutcome();
+void printOutcome();
+
+// Game play functions
+void initialDeal();
+void playersTurn();
+void dealersTurn();
+int playBlackjackRound();
+
+int main() {
+    srand(static_cast<unsigned>(time(nullptr)));
+    
+    int winnings = 0;
+    int bet = 0;
+    
+    cout << "=== WELCOME TO BLACKJACK ===" << endl;
+    cout << endl;
+    
+    while (true) {
+        cout << "You are up/down: " << winnings << endl;
+        cout << "Place your bet (or enter a negative number to cash out): ";
+        cin >> bet;
+        
+        if (bet < 0) {
+            cout << "\nThank you for playing! Final winnings: " << winnings << endl;
+            break;
+        }
+        
+        int outcome = playBlackjackRound();
+        
+        // Adjusting winnings based on outcome and bet
+        winnings += outcome * bet;
+        
+        cout << "----------------------------------------" << endl;
+    }
+    
+    return 0;
+}
+
+int playBlackjackRound() {
+    // Reset for new round
+    shuffledDeck = newShuffledDeck();
+    playerHand = "";
+    dealerHand = "";
+  
+    initialDeal();
+    playersTurn();
+    dealersTurn();
+    
+    int outcome = checkPlayerOutcome();
+    
+    // Round outcome
+    cout << "\n=== ROUND RESULT ===" << endl;
+    switch (outcome) {
+        case 2:
+            cout << "BLACKJACK! You win double your bet!" << endl;
+            break;
+        case 1:
+            cout << "YOU WIN!" << endl;
+            break;
+        case 0:
+            cout << "Push. You keep your bet." << endl;
+            break;
+        case -1:
+            cout << "You lose." << endl;
+            break;
+    }
+    cout << endl;
+    
+    return outcome;
+}
+
+void initialDeal() {
+    
+// Deal two cards to each player in alternating order
+    dealCard(playerHand);
+    dealCard(dealerHand);
+    dealCard(playerHand);
+    dealCard(dealerHand);
+    
+    cout << "\nDealer's face-up card: " << printHand(string(1, dealerHand[0])) << endl;
+}
+
+void playersTurn() {
+    char hit = 'y';
+    
+    do {
+        int playerTotal = calculateHandTotal(playerHand);
+        
+        // Player's hand
+        cout << "Your hand: " << printHand(playerHand) << " (" << playerTotal << ")" << endl;
+        
+        // Check for blackjack
+        if (checkBlackjack(playerHand)) {
+            cout << "BLACKJACK!" << endl;
+            return;
+        }
+        
+        // Check for bust
+        if (checkBust(playerHand)) {
+            cout << "BUST!" << endl;
+            return;
+        }
+        
+        // hit? y/n
+        if (playerTotal < 21) {
+            cout << "Hit? (y/n): ";
+            cin >> hit;
+            
+            if (hit == 'y' || hit == 'Y') {
+                dealCard(playerHand);
+            }
+        }
+        
+    } while ((hit == 'y' || hit == 'Y') && !checkBust(playerHand) && calculateHandTotal(playerHand) < 21);
+}
+
+void dealersTurn() {
+    cout << "\n--- Dealer's turn ---" << endl;
+    
+    if (checkBust(playerHand)) {
+        cout << "Player busted." << endl;
+        return;
+    }
+    
+    if (checkBlackjack(playerHand) && playerHand.length() == 2) {
+        cout << "Player has blackjack." << endl;
+        return;
+    }
+    
+    // Show dealer's hand
+    cout << "Dealer's hand: " << printHand(dealerHand) << " (" << calculateHandTotal(dealerHand) << ")" << endl;
+    
+    // Dealer must hit until 17 or higher
+    while (calculateHandTotal(dealerHand) < 17) {
+        dealCard(dealerHand);
+        cout << "Dealer hits: " << printHand(dealerHand) << " (" << calculateHandTotal(dealerHand) << ")" << endl;
+    }
+    
+    // Dealer blackjack
+    if (checkBlackjack(dealerHand)) {
+        cout << "Dealer has BLACKJACK!" << endl;
+    }
+    
+    // Dealer bust
+    if (checkBust(dealerHand)) {
+        cout << "Dealer BUSTS!" << endl;
+    } else {
+        cout << "Dealer stands." << endl;
+    }
+}
+
+// Shuffled deck string function
+string newShuffledDeck() {
+    string unshuffledDeck = "AAAA222233334444555566667777888899990000JJJJQQQQKKKK";
+    string shuffled = "";
+    
+    for (int i = 0; i < 52; i++) {
+        int randomIndex = rand() % unshuffledDeck.length();
+        shuffled += unshuffledDeck[randomIndex];
+        unshuffledDeck.erase(randomIndex, 1);
+    }
+    
+    return shuffled;
+}
+
+void dealCard(string &hand) {
+    if (!shuffledDeck.empty()) {
+        hand += shuffledDeck[0];
+        shuffledDeck.erase(0, 1);
+    }
+}
+
+int calculateHandTotal(string hand) {
+    int total = 0;
+    int aceCount = 0;
+    
+    for (int i = 0; i < hand.length(); i++) {
+        char c = hand[i];
+        int value = 0;
+
+ // Define card values
+        switch (c) {
+            case 'A': value = 11; aceCount++; break;
+            case '2': value = 2; break;
+            case '3': value = 3; break;
+            case '4': value = 4; break;
+            case '5': value = 5; break;
+            case '6': value = 6; break;
+            case '7': value = 7; break;
+            case '8': value = 8; break;
+            case '9': value = 9; break;
+            case '0': value = 10; break;
+            case 'J': value = 10; break;
+            case 'Q': value = 10; break;
+            case 'K': value = 10; break;
+        }
+        
+        total += value;
+    }
+    
+    while (total > 21 && aceCount > 0) {
+        total -= 10;
+        aceCount--;
+    }
+    
+    return total;
+}
+
+bool checkBlackjack(string hand) {
+    return (hand.length() == 2 && calculateHandTotal(hand) == 21);
+}
+
+bool checkBust(string hand) {
+    return (calculateHandTotal(hand) > 21);
+}
+
+string printHand(string hand) {
+    string result = "";
+    for (int i = 0; i < hand.length(); i++) {
+        if (hand[i] == '0') result += "10";
+        else result += hand[i];
+        
+        if (i < hand.length() - 1) result += " ";
+    }
+    return result;
+}
+
+int checkPlayerOutcome() {
+    int playerTotal = calculateHandTotal(playerHand);
+    int dealerTotal = calculateHandTotal(dealerHand);
+    
+    bool playerBJ = checkBlackjack(playerHand);
+    bool dealerBJ = checkBlackjack(dealerHand);
+    bool playerBust = checkBust(playerHand);
+    bool dealerBust = checkBust(dealerHand);
+    
+    // Player blackjack on initial deal wins double
+    if (playerBJ && playerHand.length() == 2 && !dealerBJ) {
+        return 2;
+    }
+    
+    // Player bust
+    if (playerBust) {
+        return -1;
+    }
+    
+    // Dealer bust
+    if (dealerBust && !playerBust) {
+        return 1;
+    }
+    
+    // Dealer blackjack
+    if (dealerBJ && !playerBJ) {
+        return -1;
+    }
+    
+    // Both blackjack (push)
+    if (playerBJ && dealerBJ) {
+        return 0;
+    }
+    
+    // Compare totals
+    if (playerTotal > dealerTotal) {
+        return 1;
+    } else if (dealerTotal > playerTotal) {
+        return -1;
+    } else {
+        return 0; // Push
+    }
+}
