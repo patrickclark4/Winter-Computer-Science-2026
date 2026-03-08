@@ -1,0 +1,305 @@
+// Lab 7: part 1
+#include <iostream>
+#include <cstring>
+using namespace std;
+
+const int ASCII_START = 1;
+const int ASCII_END = 126;
+const int BLOCK_SIZE = 256;
+
+// encrypts a single character using the key
+// wraps around so we stay within ASCII 1-126
+char encryptChar(char plainChar, int key) {
+    if (plainChar == '\0')
+        return '\0';
+
+    int range = ASCII_END - ASCII_START + 1;
+
+    // make sure key is positive and fits in our range
+    key = ((key % range) + range) % range;
+
+    int shifted = (int)plainChar - ASCII_START;
+    shifted = (shifted + key) % range;
+
+    return (char)(shifted + ASCII_START);
+}
+
+// encrypts a whole char array one character at a time
+void encryptArray(const char plainText[], char cipherText[], int size, int key) {
+    for (int i = 0; i < size; i++)
+        cipherText[i] = encryptChar(plainText[i], key);
+}
+
+// decryption is just encryption backwards
+void decryptArray(char plainText[], const char cipherText[], int size, int key) {
+    encryptArray(cipherText, plainText, size, -key);
+}
+
+int main() {
+
+    // test 1: print plain vs cipher for all printable characters
+    cout << "Plain\tCipher" << endl;
+    int testKey = 3;
+    for (int i = 32; i <= 126; i++) {
+        char plain = (char)i;
+        char cipher = encryptChar(plain, testKey);
+        cout << plain << "\t" << cipher << endl;
+    }
+
+    // test 2: encrypt a message then decrypt it and make sure we get the original back
+    char plainText[BLOCK_SIZE] = "This message is written in plain text and you can read it!";
+    char cipherText[BLOCK_SIZE] = {};
+    char decryptedText[BLOCK_SIZE] = {};
+    int key = 7;
+
+    encryptArray(plainText, cipherText, BLOCK_SIZE, key);
+    decryptArray(decryptedText, cipherText, BLOCK_SIZE, key);
+
+    cout << "\nPlain Text:     " << plainText << endl;
+    cout << "Cipher Text:    " << cipherText << endl;
+    cout << "Decrypted Text: " << decryptedText << endl;
+
+    if (strcmp(plainText, decryptedText) == 0)
+        cout << "\nSuccess - decrypted text matches the original!" << endl;
+    else
+        cout << "\nSomething went wrong, texts don't match." << endl;
+
+    return 0;
+}
+
+
+// Lab 7: part 2
+#include <iostream>
+#include <cstring>
+using namespace std;
+
+const int ASCII_START = 1;
+const int ASCII_END = 126;
+const int BLOCK_SIZE = 256;
+
+// same encryptChar from part 1
+char encryptChar(char plainChar, int key) {
+    if (plainChar == '\0')
+        return '\0';
+
+    int range = ASCII_END - ASCII_START + 1;
+    key = ((key % range) + range) % range;
+
+    int shifted = (int)plainChar - ASCII_START;
+    shifted = (shifted + key) % range;
+
+    return (char)(shifted + ASCII_START);
+}
+
+// single key versions from part 1
+void encryptArray(const char plainText[], char cipherText[], int size, int key) {
+    for (int i = 0; i < size; i++)
+        cipherText[i] = encryptChar(plainText[i], key);
+}
+
+void decryptArray(char plainText[], const char cipherText[], int size, int key) {
+    encryptArray(cipherText, plainText, size, -key);
+}
+
+// array key version 
+void encryptArray(const char plainText[], char cipherText[], int size,
+                  const int keyArr[], int keyLength) {
+    for (int i = 0; i < size; i++) {
+        int k = keyArr[i % keyLength];
+        cipherText[i] = encryptChar(plainText[i], k);
+    }
+}
+
+// negate the key to reverse the encryption
+void decryptArray(char plainText[], const char cipherText[], int size,
+                  const int keyArr[], int keyLength) {
+    for (int i = 0; i < size; i++) {
+        int k = keyArr[i % keyLength];
+        plainText[i] = encryptChar(cipherText[i], -k);
+    }
+}
+
+int main() {
+
+    // part 1 test code (kept from part 1)
+    cout << "Plain\tCipher" << endl;
+    for (int i = 32; i <= 126; i++) {
+        char plain = (char)i;
+        char cipher = encryptChar(plain, 3);
+        cout << plain << "\t" << cipher << endl;
+    }
+
+    char p1[BLOCK_SIZE] = "This message is written in plain text and you can read it!";
+    char c1[BLOCK_SIZE] = {};
+    char d1[BLOCK_SIZE] = {};
+    encryptArray(p1, c1, BLOCK_SIZE, 7);
+    decryptArray(d1, c1, BLOCK_SIZE, 7);
+    cout << "\nPlain Text:     " << p1 << endl;
+    cout << "Cipher Text:    " << c1 << endl;
+    cout << "Decrypted Text: " << d1 << endl;
+    if (strcmp(p1, d1) == 0)
+        cout << "Success - texts match!" << endl;
+
+    // test using AAAA
+    int key[] = {1, 2, 3};
+    int keyLen = 3;
+
+    char plainA[BLOCK_SIZE] = "AAAAAAAA";
+    char cipherA[BLOCK_SIZE] = {};
+    char decryptedA[BLOCK_SIZE] = {};
+
+    encryptArray(plainA, cipherA, BLOCK_SIZE, key, keyLen);
+    decryptArray(decryptedA, cipherA, BLOCK_SIZE, key, keyLen);
+
+    cout << "\nPlain Text:     " << plainA << endl;
+    cout << "Cipher Text:    " << cipherA << endl;
+    cout << "Decrypted Text: " << decryptedA << endl;
+    if (strcmp(plainA, decryptedA) == 0)
+        cout << "Success - texts match!" << endl;
+
+
+    return 0;
+}
+
+
+// Lab 7: part 3
+#include <iostream>
+#include <cstring>
+using namespace std;
+
+const int ASCII_START = 1;
+const int ASCII_END = 126;
+const int BLOCK_SIZE = 512;
+
+char encryptChar(char plainChar, int key) {
+    if (plainChar == '\0')
+        return '\0';
+
+    int range = ASCII_END - ASCII_START + 1;
+    key = ((key % range) + range) % range;
+
+    int shifted = (int)plainChar - ASCII_START;
+    shifted = (shifted + key) % range;
+
+    return (char)(shifted + ASCII_START);
+}
+
+void encryptArray(const char plainText[], char cipherText[], int size, int key) {
+    for (int i = 0; i < size; i++)
+        cipherText[i] = encryptChar(plainText[i], key);
+}
+
+void decryptArray(char plainText[], const char cipherText[], int size, int key) {
+    encryptArray(cipherText, plainText, size, -key);
+}
+
+// overloaded versions that take a key array instead of a single key
+void encryptArray(const char plainText[], char cipherText[], int size,
+                  const int keyArr[], int keyLength) {
+    for (int i = 0; i < size; i++) {
+        int k = keyArr[i % keyLength];
+        cipherText[i] = encryptChar(plainText[i], k);
+    }
+}
+
+void decryptArray(char plainText[], const char cipherText[], int size,
+                  const int keyArr[], int keyLength) {
+    for (int i = 0; i < size; i++) {
+        int k = keyArr[i % keyLength];
+        plainText[i] = encryptChar(cipherText[i], -k);
+    }
+}
+
+// tries all possible key combos and checks if the decrypted text contains "the"
+// if it shows up enough times its probably the right key
+void bruteForce3(char plainText[], const char cipherText[], int size, int minThe) {
+    char trial[BLOCK_SIZE] = {};
+
+    for (int i = ASCII_START; i < ASCII_END; i++) {
+        for (int j = ASCII_START; j < ASCII_END; j++) {
+            for (int k = ASCII_START; k < ASCII_END; k++) {
+
+                int trialKey[3] = {i, j, k};
+                decryptArray(trial, cipherText, size, trialKey, 3);
+
+                int theCount = 0;
+                for (int idx = 0; idx < size - 4; idx++) {
+                    if (trial[idx] == ' ' && trial[idx+1] == 't' &&
+                        trial[idx+2] == 'h' && trial[idx+3] == 'e' &&
+                        trial[idx+4] == ' ')
+                        theCount++;
+                }
+
+                if (theCount >= minThe) {
+                    cout << "Key {" << i << ", " << j << ", " << k << "}"
+                         << " -> found " << theCount << " instances of \" the \"" << endl;
+                    memcpy(plainText, trial, size);
+                }
+            }
+        }
+    }
+}
+
+int main() {
+
+// part 1 test
+    cout << "Plain\tCipher" << endl;
+    for (int i = 32; i <= 126; i++) {
+        char plain = (char)i;
+        char cipher = encryptChar(plain, 3);
+        cout << plain << "\t" << cipher << endl;
+    }
+    char p1[BLOCK_SIZE] = "This message is written in plain text and you can read it!";
+    char c1[BLOCK_SIZE] = {};
+    char d1[BLOCK_SIZE] = {};
+    encryptArray(p1, c1, BLOCK_SIZE, 7);
+    decryptArray(d1, c1, BLOCK_SIZE, 7);
+    cout << "\nPlain Text:     " << p1 << endl;
+    cout << "Cipher Text:    " << c1 << endl;
+    cout << "Decrypted Text: " << d1 << endl;
+    if (strcmp(p1, d1) == 0)
+        cout << "success!" << endl;
+
+    // part 2 test 
+    int key[] = {1, 2, 3};
+    int keyLen = 3;
+
+    char plainA[BLOCK_SIZE] = "AAAAAAAA";
+    char cipherA[BLOCK_SIZE] = {};
+    char decryptedA[BLOCK_SIZE] = {};
+    encryptArray(plainA, cipherA, BLOCK_SIZE, key, keyLen);
+    decryptArray(decryptedA, cipherA, BLOCK_SIZE, key, keyLen);
+    cout << "\nPlain Text:     " << plainA << endl;
+    cout << "Cipher Text:    " << cipherA << endl;
+    cout << "Decrypted Text: " << decryptedA << endl;
+    if (strcmp(plainA, decryptedA) == 0)
+        cout << "success!" << endl;
+
+    // part 3: brute force 
+    char original[BLOCK_SIZE] =
+        "When in the Course of human events, it becomes necessary for one people to dissolve "
+        "the political bands which have connected them with another, and to assume among the "
+        "powers of the earth, the separate and equal station to which the Laws of Nature and "
+        "of Nature's God entitle them, a decent respect to the opinions of mankind requires "
+        "that they should declare the causes which impel them to the separation.";
+
+    int secretKey[3] = {76, 7, 4};
+    char cipherText[BLOCK_SIZE] = {};
+    char crackedPlain[BLOCK_SIZE] = {};
+
+    encryptArray(original, cipherText, BLOCK_SIZE, secretKey, 3);
+
+    cout << "\ncipher text to crack:" << endl;
+    cout << cipherText << endl;
+    cout << "\nrunning brute force, this will take a while..." << endl;
+
+    bruteForce3(crackedPlain, cipherText, BLOCK_SIZE, 2);
+
+    cout << "\ncracked message:" << endl;
+    cout << crackedPlain << endl;
+
+    if (strcmp(original, crackedPlain) == 0)
+        cout << "\ndecrypted message matches the original" << endl;
+
+    return 0;
+}
