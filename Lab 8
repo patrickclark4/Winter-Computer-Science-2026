@@ -1,0 +1,255 @@
+// Lab 8 - Minesweeper
+#include <iostream>
+#include <iomanip>
+#include <sstream>
+#include <string>
+#include <cstdlib>
+#include <ctime>
+using namespace std;
+
+// Global constants & game state 
+const int GRID_SIZE       = 10;
+const int NUMBER_OF_MINES = 10;
+
+bool FLAG_MODE = false;
+
+// GRID[row][col][0] = mine present
+// GRID[row][col][1] = flag placed
+// GRID[row][col][2] = cell searched
+bool GRID[GRID_SIZE][GRID_SIZE][3] = {};
+
+
+// count mines
+int countMines() {
+    int count = 0;
+    for (int r = 0; r < GRID_SIZE; r++)
+        for (int c = 0; c < GRID_SIZE; c++)
+            if (GRID[r][c][0]) count++;
+    return count;
+}
+
+
+// count flags
+int countFlags() {
+    int count = 0;
+    for (int r = 0; r < GRID_SIZE; r++)
+        for (int c = 0; c < GRID_SIZE; c++)
+            if (GRID[r][c][1]) count++;
+    return count;
+}
+
+
+// reset the grid 
+void resetGrid() {
+    for (int r = 0; r < GRID_SIZE; r++)
+        for (int c = 0; c < GRID_SIZE; c++)
+            for (int a = 0; a < 3; a++)
+                GRID[r][c][a] = false;
+
+    srand((unsigned int)time(0) ^ (unsigned int)(clock() * 1000033));
+
+    while (countMines() < NUMBER_OF_MINES) {
+        int r = rand() % GRID_SIZE;
+        int c = rand() % GRID_SIZE;
+        if (!GRID[r][c][0]) GRID[r][c][0] = true;
+    }
+}
+
+
+// count adjacent mines
+int countAdjacentMines(int row, int col) {
+    int count = 0;
+    for (int r = row - 1; r <= row + 1; r++) {
+        for (int c = col - 1; c <= col + 1; c++) {
+            if (r < 0 || r >= GRID_SIZE) continue;
+            if (c < 0 || c >= GRID_SIZE) continue;
+            if (r == row && c == col)   continue;
+            if (GRID[r][c][0]) count++;
+        }
+    }
+    return count;
+}
+void selectCell(int row, int col);
+void selectCell(int row, int col) {
+    // In flag mode: toggle flag and return
+    if (FLAG_MODE) {
+        GRID[row][col][1] = !GRID[row][col][1];
+        return;
+    }
+
+    // Cannot search a flagged cell
+    if (GRID[row][col][1]) {
+        cout << "That cell is flagged. Unflag it before searching.\n";
+        return;
+    }
+
+    // Already searched: nothing to do
+    if (GRID[row][col][2]) return;
+
+    // Mark searched
+    GRID[row][col][2] = true;
+    if (countAdjacentMines(row, col) == 0) {
+        for (int r = row - 1; r <= row + 1; r++) {
+            for (int c = col - 1; c <= col + 1; c++) {
+                if (r < 0 || r >= GRID_SIZE) continue;
+                if (c < 0 || c >= GRID_SIZE) continue;
+                if (r == row && c == col)   continue;
+                if (!GRID[r][c][2] && !GRID[r][c][1] && !GRID[r][c][0])
+                    selectCell(r, c);
+            }
+        }
+    }
+}
+
+
+// print grid 
+void printGrid(bool showMines = false) {
+    int labelW = (GRID_SIZE > 9) ? 2 : 1;
+
+    // Column header
+    cout << string(labelW + 3, ' ');
+    for (int c = 0; c < GRID_SIZE; c++)
+        cout << setw(2) << c;
+    cout << "\n" << string(labelW + 2, ' ');
+    for (int i = 0; i < GRID_SIZE * 2; i++) cout << "-";
+    cout << "\n";
+
+    // Rows (highest index at top)
+    for (int r = GRID_SIZE - 1; r >= 0; r--) {
+        cout << setw(labelW) << r << " | ";
+        for (int c = 0; c < GRID_SIZE; c++) {
+            if (showMines && GRID[r][c][0]) {
+                cout << "* ";
+            } else if (GRID[r][c][1]) {
+                cout << "F ";
+            } else if (GRID[r][c][2]) {
+                int adj = countAdjacentMines(r, c);
+                if (adj > 0) cout << adj << " ";
+                else         cout << "  ";
+            } else {
+                cout << "+ ";
+            }
+        }
+        cout << "\n";
+    }
+    cout << "\n";
+}
+void printGameStatus(int startTime) {
+    int elapsed = (int)time(0) - startTime;
+    cout << "Mines remaining: " << countMines() - countFlags()
+         << "   Time: " << elapsed << "s\n";
+}
+bool getCellSelection(int cellSelection[]) {
+    if (FLAG_MODE)
+        cout << "FLAG MODE   | Enter row,col  (-1 to switch to SEARCH): ";
+    else
+        cout << "SEARCH MODE | Enter row,col  (-1 to switch to FLAG):   ";
+    cout << flush;
+
+    string line;
+    while (line.empty()) {
+        if (!getline(cin, line)) {
+            if (cin.eof()) { cout << "\nExiting.\n"; exit(0); }
+            cin.clear();
+        }
+        size_t s = line.find_first_not_of(" \t\r\n");
+        line = (s == string::npos) ? "" : line.substr(s);
+    }
+    for (char& ch : line)
+        if (ch == ',' || ch == '(' || ch == ')') ch = ' ';
+
+    istringstream iss(line);
+    int row;
+    if (!(iss >> row)) return false;
+
+    // Negative value toggles mode
+    if (row < 0) {
+        FLAG_MODE = !FLAG_MODE;
+        return false;
+    }
+
+    if (row >= GRID_SIZE) return false;
+
+    int col;
+    if (!(iss >> col)) return false;
+    if (col < 0 || col >= GRID_SIZE) return false;
+
+    cellSelection[0] = row;
+    cellSelection[1] = col;
+    return true;
+}
+
+
+// check for win
+bool checkWin() {
+    for (int r = 0; r < GRID_SIZE; r++) {
+        for (int c = 0; c < GRID_SIZE; c++) {
+            if (!GRID[r][c][0] && !GRID[r][c][2]) return false;  // unsearched safe cell
+            if ( GRID[r][c][1] && !GRID[r][c][0]) return false;  // flag on non-mine
+        }
+    }
+    return true;
+}
+
+
+// check for loss 
+// Returns true if the given cell has been searched and contains a mine.
+bool checkLose(int row, int col) {
+    return GRID[row][col][2] && GRID[row][col][0];
+}
+void clearScreen() { cout << "\033[2J\033[H" << flush; }
+
+int main() {
+    int cellSelection[2] = {};
+    resetGrid();
+    int startTime = (int)time(0);
+
+    while (true) {
+        clearScreen();
+        printGameStatus(startTime);
+        printGrid();
+
+        if (!getCellSelection(cellSelection))
+            continue;
+
+        int row = cellSelection[0];
+        int col = cellSelection[1];
+
+        if (FLAG_MODE) {
+            selectCell(row, col);
+            continue;
+        }
+
+        // Search mode: check for mine 
+        if (GRID[row][col][1]) {
+            continue;
+        }
+
+        if (GRID[row][col][0]) {
+            // Hit a mine — game over
+            GRID[row][col][2] = true;
+            int elapsed = (int)time(0) - startTime;
+            for (int r = 0; r < GRID_SIZE; r++)
+                for (int c = 0; c < GRID_SIZE; c++)
+                    if (GRID[r][c][0]) GRID[r][c][1] = true;
+            clearScreen();
+            printGameStatus(startTime);
+            printGrid(true);
+            cout << "BOOM! You hit a mine at (" << row << "," << col << ")."
+                 << "  Time: " << elapsed << "s\n";
+            break;
+        }
+        selectCell(row, col);
+
+        if (checkWin()) {
+            int elapsed = (int)time(0) - startTime;
+            clearScreen();
+            printGameStatus(startTime);
+            printGrid();
+            cout << "YOU WIN!  Time: " << elapsed << "s\n";
+            break;
+        }
+    }
+
+    return 0;
+}
