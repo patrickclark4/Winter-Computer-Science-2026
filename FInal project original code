@@ -1,1 +1,460 @@
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <vector>
+#include <cmath>
+#include <iomanip>
+using namespace std;
 
+// account settings
+double accountBalance = 10000.0;
+double riskPercent = 1.0; // risk 1% per trade
+double rrRatio = 2.0; // 1:2 risk to reward
+
+// strategy settings
+int asiaOpenHour = 23; // 3pm PST = 23:00 UTC
+int rangeDuration = 15; // 15 min opening range
+double fibZoneLow = 0.50; // 50% fibonacci level
+double fibZoneHigh = 0.75; // 75% fibonacci level
+
+// candle struct to hold data
+struct Candle {
+    string datetime;
+    int hour;
+    int minute;
+    int day;
+    int month;
+    int year;
+    double open;
+    double high;
+    double low;
+    double close;
+};
+
+// trade struct to store trade info
+struct Trade {
+    string entryTime;
+    string exitTime;
+    string direction; // "BUY" or "SELL"
+    double entryPrice;
+    double stopLoss;
+    double takeProfit;
+    double lotSize;
+    double rangeHigh;
+    double rangeLow;
+    string outcome; // "WIN" or "LOSS" or "OPEN"
+    double pnl;
+};
+
+// parse a datetime string 
+bool parseDate(string dt, int &yr, int &mo, int &dy, int &hr, int &mn) {
+    if (dt.length() < 16)
+        return false;
+    yr = stoi(dt.substr(0, 4));
+    mo = stoi(dt.substr(5, 2));
+    dy = stoi(dt.substr(8, 2));
+    hr = stoi(dt.substr(11, 2));
+    mn = stoi(dt.substr(14, 2));
+    return true;
+}
+
+// load candles from csv file
+vector<Candle> loadCSV(string filename) {
+    vector<Candle> candles;
+    ifstream file(filename);
+
+    if (!file.is_open()) {
+        cout << "Error: could not open file " << filename << endl;
+        return candles;
+    }
+
+    string line;
+    bool firstLine = true;
+
+    while (getline(file, line)) {
+        // skip header
+        if (firstLine) {
+            firstLine = false;
+            continue;
+        }
+
+        if (line.empty())
+            continue;
+
+        stringstream ss(line);
+        string dt, o, h, l, c;
+
+        getline(ss, dt, ',');
+        getline(ss, o, ',');
+        getline(ss, h, ',');
+        getline(ss, l, ',');
+        getline(ss, c, ',');
+
+        Candle candle;
+        candle.datetime = dt;
+        candle.open = stod(o);
+        candle.high = stod(h);
+        candle.low = stod(l);
+        candle.close = stod(c);
+
+        parseDate(dt, candle.year, candle.month, candle.day,
+                  candle.hour, candle.minute);
+
+        candles.push_back(candle);
+    }
+
+    cout << "Loaded " << candles.size() << " candles from " << filename << endl;
+    return candles;
+}
+
+// check if candle is inside the opening range window (23:00 to 23:14)
+bool inRangeWindow(int hour, int minute) {
+    if (hour == asiaOpenHour && minute < rangeDuration)
+        return true;
+    return false;
+}
+
+// check if we are past the range window
+bool pastRangeWindow(int hour, int minute) {
+    if (hour == asiaOpenHour && minute >= rangeDuration)
+        return true;
+    if (hour != asiaOpenHour) {
+        for (int i = 1; i <= 4; i++) {
+            if (hour == (asiaOpenHour + i) % 24)
+                return true;
+        }
+    }
+    return false;
+}
+
+// check if we are in the trade entry window 
+bool inEntryWindow(int hour, int minute) {
+    // must be past the range window first
+    if (!pastRangeWindow(hour, minute))
+        return false;
+
+    // allow entries for 4 hours after asia open
+    for (int i = 0; i < 4; i++) {
+        if (hour == (asiaOpenHour + i) % 24)
+            return true;
+    }
+    return false;
+}
+
+// calculate how many lots to trade based on 1% risk
+double calcLotSize(double stopDistance) {
+    double riskAmount = accountBalance * (riskPercent / 100.0);
+    double pipSize = 0.001;
+    double pipValuePerLot = 5.0;
+    double stopInPips = stopDistance / pipSize;
+
+    if (stopInPips <= 0)
+        return 0;
+
+    double lots = riskAmount / (stopInPips * pipValuePerLot);
+    lots = floor(lots * 100) / 100;
+
+    // minimum lot size
+    if (lots < 0.01)
+        lots = 0.01;
+
+    return lots;
+}
+
+// run the backtest
+vector<Trade> runBacktest(vector<Candle> &candles) {
+    vector<Trade> trades;
+
+    // session variables - reset each day
+    double rangeHigh = 0;
+    double rangeLow = 999999;
+    double rangeOpenPrice = 0;
+    bool rangeReady = false;
+    bool isBullish = false;
+    bool inTrade = false;
+    int lastSessionDay = -1;
+
+    // current trade variables
+    double entryPrice = 0;
+    double stopLoss = 0;
+    double takeProfit = 0;
+    double lotSize = 0;
+    string entryTime = "";
+    string tradeDir = "";
+
+    for (int i = 0; i < candles.size(); i++) {
+        Candle bar = candles[i];
+
+        // reset everything at the start of a new asia session (23:00)
+        if (bar.hour == asiaOpenHour && bar.minute == 0) {
+            // use day as session id to avoid resetting mid-session at midnight
+            int sessionDay = bar.year * 10000 + bar.month * 100 + bar.day;
+
+            if (sessionDay != lastSessionDay) {
+                lastSessionDay = sessionDay;
+                rangeHigh = 0;
+                rangeLow = 999999;
+                rangeOpenPrice = bar.open;
+                rangeReady = false;
+                // dont close trade if one is still running
+                cout << "New session: " << bar.datetime << endl;
+            }
+        }
+
+        // build the opening range during the first 15 minutes
+        if (!rangeReady && inRangeWindow(bar.hour, bar.minute)) {
+            if (bar.high > rangeHigh)
+                rangeHigh = bar.high;
+            if (bar.low < rangeLow)
+                rangeLow = bar.low;
+        }
+
+        // lock in the range once we pass the 15 minute window
+        if (!rangeReady && pastRangeWindow(bar.hour, bar.minute)) {
+            if (rangeHigh > 0 && rangeLow < 999999) {
+                rangeReady = true;
+
+                // decide direction based on whether range closed above or below open
+                isBullish = (bar.close >= rangeOpenPrice);
+
+                cout << "Range set - High: " << rangeHigh
+                     << " Low: " << rangeLow
+                     << " Direction: " << (isBullish ? "BULL" : "BEAR") << endl;
+            }
+        }
+
+        // skip if range isnt ready yet
+        if (!rangeReady)
+            continue;
+
+        // check if open trade hit sl or tp
+        if (inTrade) {
+            bool hitSL = false;
+            bool hitTP = false;
+
+            if (tradeDir == "BUY") {
+                if (bar.low <= stopLoss)
+                    hitSL = true;
+                if (bar.high >= takeProfit)
+                    hitTP = true;
+            } else {
+                if (bar.high >= stopLoss)
+                    hitSL = true;
+                if (bar.low <= takeProfit)
+                    hitTP = true;
+            }
+
+            // tp takes priority if both happen on same bar
+            if (hitTP || hitSL) {
+                Trade t;
+                t.entryTime = entryTime;
+                t.exitTime = bar.datetime;
+                t.direction = tradeDir;
+                t.entryPrice = entryPrice;
+                t.stopLoss = stopLoss;
+                t.takeProfit = takeProfit;
+                t.lotSize = lotSize;
+                t.rangeHigh = rangeHigh;
+                t.rangeLow = rangeLow;
+
+                if (hitTP) {
+                    t.outcome = "WIN";
+                    double pips = abs(takeProfit - entryPrice) / 0.001;
+                    t.pnl = pips * 5.0 * lotSize;
+                } else {
+                    t.outcome = "LOSS";
+                    double pips = abs(stopLoss - entryPrice) / 0.001;
+                    t.pnl = -(pips * 5.0 * lotSize);
+                }
+
+                accountBalance += t.pnl;
+                trades.push_back(t);
+                inTrade = false;
+
+                cout << t.outcome << " trade closed at " << bar.datetime
+                     << " PnL: $" << fixed << setprecision(2) << t.pnl << endl;
+            }
+
+            continue; // only one trade per session
+        }
+
+        // skip if not in entry window
+        if (!inEntryWindow(bar.hour, bar.minute))
+            continue;
+
+        double rangeSize = rangeHigh - rangeLow;
+        if (rangeSize <= 0)
+            continue;
+
+        // look for price to enter the fib range (50% - 75%)
+        double close = bar.close;
+
+        if (isBullish) {
+            // for a bullish range we want price to pull back into the zone
+            // zone is measured from range high downward
+            double zoneTop = rangeHigh - (fibZoneLow * rangeSize);   // 50% level
+            double zoneBot = rangeHigh - (fibZoneHigh * rangeSize);  // 75% level
+
+            // entry signal: 1 min candle closes inside the golden zone
+            if (close >= zoneBot && close <= zoneTop) {
+                entryPrice = close;
+                stopLoss = rangeLow;  // stop goes below range low
+                double risk = entryPrice - stopLoss;
+
+                if (risk <= 0)
+                    continue;
+
+                takeProfit = entryPrice + (risk * rrRatio); // 1:2 RR
+                lotSize = calcLotSize(risk);
+                entryTime = bar.datetime;
+                tradeDir = "BUY";
+                inTrade = true;
+
+                cout << "BUY signal at " << bar.datetime
+                     << " Entry: " << entryPrice
+                     << " SL: " << stopLoss
+                     << " TP: " << takeProfit
+                     << " Lots: " << lotSize << endl;
+            }
+
+        } else {
+            // for a bearish range we want price to rally up into the zone
+            // zone is measured from range low upward
+            double zoneBot = rangeLow + (fibZoneLow * rangeSize);   // 50% level
+            double zoneTop = rangeLow + (fibZoneHigh * rangeSize);  // 75% level
+
+            // entry signal: 1 min candle closes inside the golden zone
+            if (close >= zoneBot && close <= zoneTop) {
+                entryPrice = close;
+                stopLoss = rangeHigh;  // stop goes above range high
+                double risk = stopLoss - entryPrice;
+
+                if (risk <= 0)
+                    continue;
+
+                takeProfit = entryPrice - (risk * rrRatio); // 1:2 RR
+                lotSize = calcLotSize(risk);
+                entryTime = bar.datetime;
+                tradeDir = "SELL";
+                inTrade = true;
+
+                cout << "SELL signal at " << bar.datetime
+                     << " Entry: " << entryPrice
+                     << " SL: " << stopLoss
+                     << " TP: " << takeProfit
+                     << " Lots: " << lotSize << endl;
+            }
+        }
+    }
+
+    // if still in a trade at end of data close it out
+    if (inTrade) {
+        Trade t;
+        t.entryTime = entryTime;
+        t.exitTime = candles.back().datetime;
+        t.direction = tradeDir;
+        t.entryPrice = entryPrice;
+        t.stopLoss = stopLoss;
+        t.takeProfit = takeProfit;
+        t.lotSize = lotSize;
+        t.outcome = "OPEN";
+        t.pnl = 0;
+        trades.push_back(t);
+    }
+
+    return trades;
+}
+
+// print all trades in a table
+void printResults(vector<Trade> &trades) {
+    int wins = 0;
+    int losses = 0;
+    double totalPnl = 0;
+    double peakBalance = accountBalance;
+    double maxDrawdown = 0;
+    double runningBalance = accountBalance;
+
+    cout << "\n=== TRADE LOG ===" << endl;
+    cout << left << setw(20) << "Entry Time"
+         << setw(20) << "Exit Time"
+         << setw(6)  << "Dir"
+         << setw(10) << "Entry"
+         << setw(10) << "SL"
+         << setw(10) << "TP"
+         << setw(8)  << "Lots"
+         << setw(8)  << "Result"
+         << setw(10) << "PnL" << endl;
+    cout << string(102, '-') << endl;
+
+    for (int i = 0; i < trades.size(); i++) {
+        Trade t = trades[i];
+
+        cout << left << setw(20) << t.entryTime
+             << setw(20) << t.exitTime
+             << setw(6)  << t.direction
+             << setw(10) << fixed << setprecision(3) << t.entryPrice
+             << setw(10) << t.stopLoss
+             << setw(10) << t.takeProfit
+             << setw(8)  << setprecision(4) << t.lotSize
+             << setw(8)  << t.outcome
+             << setw(10) << setprecision(2) << t.pnl << endl;
+
+        if (t.outcome == "WIN") wins++;
+        if (t.outcome == "LOSS") losses++;
+        totalPnl += t.pnl;
+
+        // track drawdown
+        runningBalance += t.pnl;
+        if (runningBalance > peakBalance)
+            peakBalance = runningBalance;
+        double dd = (peakBalance - runningBalance) / peakBalance * 100.0;
+        if (dd > maxDrawdown)
+            maxDrawdown = dd;
+    }
+
+    int totalTrades = wins + losses;
+    double winRate = 0;
+    if (totalTrades > 0)
+        winRate = (double)wins / totalTrades * 100.0;
+
+    cout << "\n=== SUMMARY ===" << endl;
+    cout << "Total trades:  " << trades.size() << endl;
+    cout << "Wins:          " << wins << endl;
+    cout << "Losses:        " << losses << endl;
+    cout << "Win rate:      " << fixed << setprecision(1) << winRate << "%" << endl;
+    cout << "Net PnL:       $" << setprecision(2) << totalPnl << endl;
+    cout << "Final balance: $" << accountBalance << endl;
+    cout << "Max drawdown:  " << setprecision(2) << maxDrawdown << "%" << endl;
+}
+
+int main(int argc, char *argv[]) {
+    string filename = "xagusd_1m.csv";
+
+    // allow passing a filename as argument
+    if (argc > 1)
+        filename = argv[1];
+
+    cout << "=== XAGUSD Asia Opening Range Fibonacci Strategy ===" << endl;
+    cout << "File: " << filename << endl;
+    cout << "Starting balance: $" << accountBalance << endl;
+    cout << "Risk per trade: " << riskPercent << "%" << endl;
+    cout << "RR Ratio: 1:" << rrRatio << endl;
+    cout << "Asia open: " << asiaOpenHour << ":00 UTC (3:00 PM PST)" << endl;
+    cout << "Opening range: " << rangeDuration << " minutes" << endl;
+    cout << "Fibonacci zone: " << fibZoneLow * 100 << "% - "
+         << fibZoneHigh * 100 << "%" << endl;
+    cout << "=====================================================" << endl;
+
+    vector<Candle> candles = loadCSV(filename);
+
+    if (candles.empty()) {
+        cout << "No data loaded, exiting" << endl;
+        return 1;
+    }
+
+    vector<Trade> trades = runBacktest(candles);
+    printResults(trades);
+
+    return 0;
+}
