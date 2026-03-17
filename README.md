@@ -12,10 +12,9 @@ Challenges:
 I started by writing the framework of the strategy and the risk management which went pretty smoothly, especially risk management and executing trades
 were some simple loops and essentially true or false statements. However, when actually getting to part where I had to test my code and see if the bot
 would actually execute trades given market data, this is where I started to struggle. At first I was trying to figure out an interface that would 
-allow me to still write in C++ because that's kind of the whole point of the project. However, I had really no idea how to do so. I found a trading
-software called Jforex4 that allows for progammable strategies to be tested over the course of any time frame under any parameters. The only issue 
-with this software is that the backtesting bot only accepts Java source code. I ran into a wall here because I am not familiar with Java syntax, however, 
-with the help of Claude AI I was able to fully convert my original file from C++ into a Java alternative. The issues were not finished here though, 
+allow me to still write in C++ because that's kind of the whole point of the project. However, I had really no idea how to do so. Initially I was trying to get
+market data to load through a CSV file and have the bot use that, but I couldn't figure out how to make that work. I opted to find a platform that would allow me to directly 
+import my code and have access to their charts. I found a trading software called Jforex4 that allows for progammable strategies to be tested over the course of any time frame under any parameters. The only issue with this software is that the backtesting bot only accepts Java source code. I ran into a wall here because I am not familiar with Java syntax, however, with the help of Claude AI I was able to fully convert my original file from C++ into a Java alternative. The issues were not finished here though, 
 After plugging in my Java source when trying to backtest the bot, not a single trade executed. This is because the opening range did not get defined properly. 
 For example, the variable bool bullrange was set equal to the current candle close (bar.getclose). As price moved around the midpoint of the range it was causing 
 the boolean varibale to flip between true and false on every bar. This meant that the strategy would not execute, because instead of buying the pullback how it was intended, 
