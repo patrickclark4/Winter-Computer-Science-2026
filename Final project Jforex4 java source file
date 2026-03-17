@@ -1,0 +1,245 @@
+// Strategy : XAGUSD Asia Opening Range Fibonacci Retracement
+// Platform  : Dukascopy JForex4
+
+import com.dukascopy.api.*;
+import com.dukascopy.api.IEngine.OrderCommand;
+
+import java.util.Calendar;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.TimeZone;
+
+public class XagusdAsiaFibStrategy implements IStrategy {
+
+    // Always retrieve services directly from the IContext object
+    private IEngine  engine;
+    private IConsole console;
+    private IAccount account;
+
+    // Configurable parameters
+    @Configurable("Risk per trade (%)")
+    public double riskPct = 1.0;
+
+    @Configurable("Risk-to-reward ratio (e.g. 2 = 1:2)")
+    public double rrRatio = 2.0;
+
+    @Configurable("Fib golden zone lower bound (0.50 = 50%)")
+    public double fibLow = 0.50;
+
+    @Configurable("Fib golden zone upper bound (0.75 = 75%)")
+    public double fibHigh = 0.75;
+
+    @Configurable("Asia session open — UTC hour (23 = 3 PM PST)")
+    public int asiaOpenHour = 23;
+
+    @Configurable("Opening range length in minutes (default 15)")
+    public int rangeMins = 15;
+
+    @Configurable("Hours after open to allow entries (default 4)")
+    public int sessionHours = 4;
+
+   
+    private static final Instrument INSTRUMENT = Instrument.XAGUSD;
+
+    // Define key parameters 
+    private double  rangeHigh      = 0;
+    private double  rangeLow       = Double.MAX_VALUE;
+    private double  rangeOpenPrice = 0;
+    private boolean rangeSet       = false;
+    private boolean bullRange      = false;
+    private boolean tradeOpen      = false;
+    private int     orderCount     = 0;
+    private int     lastSessionId  = -1;  
+    @Override
+    public void onStart(IContext context) throws JFException {
+        
+        engine  = context.getEngine();
+        console = context.getConsole();
+        account = context.getAccount();
+
+        // Subscribe XAGUSD 
+        Set<Instrument> instruments = new HashSet<>();
+        instruments.add(INSTRUMENT);
+        context.setSubscribedInstruments(instruments, true);
+
+        log("Strategy started — subscribed to " + INSTRUMENT);
+        log(String.format(
+            "risk=%.1f%%  RR=1:%.1f  zone=%.0f%%-%.0f%%  asiaOpen=%02d:00UTC  range=%dmin",
+            riskPct, rrRatio, fibLow * 100, fibHigh * 100, asiaOpenHour, rangeMins));
+    }
+    @Override
+    public void onBar(Instrument instrument, Period period,
+                      IBar askBar, IBar bidBar) throws JFException {
+
+        // Only handle XAGUSD 1-minute bars
+        if (!instrument.equals(INSTRUMENT)) return;
+        if (!period.equals(Period.ONE_MIN))  return;
+
+        // Decode bar time in UTC
+        Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+        cal.setTimeInMillis(bidBar.getTime());
+        int barHour = cal.get(Calendar.HOUR_OF_DAY);
+        int barMin  = cal.get(Calendar.MINUTE);
+
+        // New session detection 
+        // A session starts exactly at asiaOpenHour:00 UTC.
+       
+        if (barHour == asiaOpenHour && barMin == 0) {
+            int sessionId = cal.get(Calendar.YEAR) * 10000
+                          + (cal.get(Calendar.MONTH) + 1) * 100
+                          + cal.get(Calendar.DAY_OF_MONTH);
+            if (sessionId != lastSessionId) {
+                lastSessionId  = sessionId;
+                rangeHigh      = 0;
+                rangeLow       = Double.MAX_VALUE;
+                rangeOpenPrice = bidBar.getOpen();
+                rangeSet       = false;
+                log("--- New session " + sessionId + " ---");
+            }
+        }
+
+        // Build 15-min opening range (23:00–23:14)
+        if (!rangeSet && isInRangeWindow(barHour, barMin)) {
+            if (bidBar.getHigh() > rangeHigh) rangeHigh = bidBar.getHigh();
+            if (bidBar.getLow()  < rangeLow)  rangeLow  = bidBar.getLow();
+        }
+
+        // Lock range on the first bar after the window
+        if (!rangeSet && isAfterRangeWindow(barHour, barMin)
+                && rangeHigh > 0 && rangeLow < Double.MAX_VALUE) {
+            rangeSet  = true;
+            // Direction fixed once: bullish if range closed above range open
+            bullRange = (bidBar.getClose() >= rangeOpenPrice);
+            log(String.format("Range locked  H=%.5f  L=%.5f  size=%.5f  dir=%s",
+                rangeHigh, rangeLow, rangeHigh - rangeLow,
+                bullRange ? "BULL" : "BEAR"));
+        }
+
+        if (!rangeSet)                       return;
+        if (tradeOpen)                       return;
+        if (!isEntryWindow(barHour, barMin)) return;
+
+        double rangeSize = rangeHigh - rangeLow;
+        if (rangeSize <= 0) return;
+
+        double close = bidBar.getClose();
+
+        if (bullRange) {
+            // Pullback into 50%-75% zone measured down from range high = BUY
+            double zoneTop = rangeHigh - fibLow  * rangeSize;
+            double zoneBot = rangeHigh - fibHigh * rangeSize;
+
+            log(String.format("  [BULL check] close=%.5f  zone=%.5f-%.5f",
+                close, zoneBot, zoneTop));
+
+            if (close >= zoneBot && close <= zoneTop) {
+                double sl       = rangeLow;
+                double stopDist = close - sl;
+                if (stopDist <= 0) return;
+                double tp   = close + stopDist * rrRatio;
+                double lots = calcLotSize(stopDist);
+                if (lots <= 0) return;
+
+                String label = "XagFib_BUY_" + (++orderCount);
+                engine.submitOrder(label, INSTRUMENT, OrderCommand.BUY,
+                                   lots, 0, 2, sl, tp);
+                tradeOpen = true;
+                log(String.format("BUY  entry~%.5f  SL=%.5f  TP=%.5f  lots=%.4f",
+                    close, sl, tp, lots));
+            }
+
+        } else {
+            // Rally into 50%-75% zone measured up from range low = SELL
+            double zoneBot = rangeLow + fibLow  * rangeSize;
+            double zoneTop = rangeLow + fibHigh * rangeSize;
+
+            log(String.format("  [BEAR check] close=%.5f  zone=%.5f-%.5f",
+                close, zoneBot, zoneTop));
+
+            if (close >= zoneBot && close <= zoneTop) {
+                double sl       = rangeHigh;
+                double stopDist = sl - close;
+                if (stopDist <= 0) return;
+                double tp   = close - stopDist * rrRatio;
+                double lots = calcLotSize(stopDist);
+                if (lots <= 0) return;
+
+                String label = "XagFib_SELL_" + (++orderCount);
+                engine.submitOrder(label, INSTRUMENT, OrderCommand.SELL,
+                                   lots, 0, 2, sl, tp);
+                tradeOpen = true;
+                log(String.format("SELL entry~%.5f  SL=%.5f  TP=%.5f  lots=%.4f",
+                    close, sl, tp, lots));
+            }
+        }
+    }
+
+    @Override
+    public void onMessage(IMessage message) throws JFException {
+        if (message.getOrder() == null) return;
+        IMessage.Type type = message.getType();
+        if (type == IMessage.Type.ORDER_CLOSE_OK
+                || type == IMessage.Type.ORDER_CLOSE_REJECTED) {
+            IOrder o = message.getOrder();
+            if (o.getLabel().startsWith("XagFib_")) {
+                tradeOpen = false;
+                log(String.format("Closed %s  P&L=%.2f %s",
+                    o.getLabel(),
+                    o.getProfitLossInAccountCurrency(),
+                    account.getCurrency()));
+            }
+        }
+    }
+
+    @Override
+    public void onStop() throws JFException {
+        log("Strategy stopped.");
+    }
+
+    @Override public void onTick(Instrument i, ITick t)  throws JFException {}
+    @Override public void onAccount(IAccount a)          throws JFException {}
+
+    /** True for bars 23:00–23:14 (the opening range window). */
+    private boolean isInRangeWindow(int hour, int min) {
+        return hour == asiaOpenHour && min < rangeMins;
+    }
+
+    /** True from 23:15 onward, including post-midnight hours. */
+    private boolean isAfterRangeWindow(int hour, int min) {
+        if (hour == asiaOpenHour) return min >= rangeMins;
+        return isSessionHour(hour);
+    }
+
+    /** True only during the entry window (after range locks, within session). */
+    private boolean isEntryWindow(int hour, int min) {
+        if (!isAfterRangeWindow(hour, min)) return false;
+        return isSessionHour(hour);
+    }
+
+    private boolean isSessionHour(int hour) {
+        for (int i = 0; i < sessionHours; i++) {
+            if (hour == (asiaOpenHour + i) % 24) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Position size for 1% equity risk.
+     * XAGUSD @ Dukascopy: 1 lot = 5000 oz, pip = $0.001, pip value = $5/lot.
+     */
+    private double calcLotSize(double stopDistance) throws JFException {
+        double equity         = account.getEquity();
+        double riskDollars    = equity * riskPct / 100.0;
+        double pipSize        = 0.001;
+        double pipValuePerLot = 5.0;
+        double stopPips       = stopDistance / pipSize;
+        if (stopPips <= 0) return 0;
+        double lots = riskDollars / (stopPips * pipValuePerLot);
+        lots = Math.floor(lots * 100.0) / 100.0;
+        return Math.max(lots, 0.01);
+    }
+
+    private void log(String msg) {
+        console.getOut().println("[XagFib] " + msg);
+    }
+}
